@@ -1,0 +1,144 @@
+---
+title: "Probability of Adjacent Mutations"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Background
+
+Consider a DNA sequence of length n.  Suppose there are k distinct mutations with positions chosen uniformly at random.  The case with n = 105 and k = 11 will be used as an example throughout.  We wish to answer the following:
+
+1. What is the chance that the next mutation will be adjacent to any of the previous k?
+2. What is the chance that there is at least one pair of adjacent mutations among the k?
+
+We can answer these questions in several ways.  Exact formulas can be obtained by combinatorial counting arguments.  However, this may be a complex and tedious task.  Note that there are ${105 \choose 11} \approx 250,000,000,000,000$ ways to choose 11 mutations from a sequence of length 105.  Alternatively, we can approximate the probabilities by making simplifying assumptions or using simulations.
+
+## Heuristic Approximation
+A heuristic approximation can be derived to answer Question 1 by making some simplifying assumptions.  Since mutations are assumed to be chose uniformly at random, any choice of $k$ previous mutations is equally likely.  Given $k$ mutations, there are $n - k$ open positions for the next mutation.  When $n$ is much larger than $k$, we may assume that all of the $k$ mutations are non-adjacent to one another.  Hence there are approximately $2k$ open positions that are adjacent to one of the previous $k$--one on either side.  The probability that the next mutation is adjacent to one of the previous $k$ can then be  approximated as:
+$$ P(\text{next mutation is adjacent}) \approx \frac{2k}{n - k}.$$
+In particular, when 11 out of 105 positions have been mutated, the probability that the next mutation will be adjacent is $22/94 = 0.234$.
+
+In fact, this formula gives an upper bound.  The actual number of adjacent open positions is $\leq 2k$; there will be fewer adjacent open positions if any of the following occur:
+
+1. Any pair of previous mutation positions differ by one; i.e.\ they are adjacent.
+2. Any pair of previous mutation positions differ by two; i.e.\ there is one space between them.
+3. Any previous mutation occurs at position 1 or $n$.
+
+Note that $2k/(n - k) > 1$ when $k > n/3$ i.e.\ when the mutation rate exceeds 33%.  However, when the mutation rate is small, conditions 1-3 are unlikely to occur and the overestimation will not be too extreme.
+
+
+## Approximation Using Simulations
+We can also use simulations to answer the Questions 1 and 2.  
+
+```{r simulation-functions, warning=FALSE, message=FALSE, cache=TRUE}
+library(dplyr)
+
+# Simulate the probability that the next mutation will be adjacent to any of the previous
+# n = sequence length
+# k = number of previous mutations
+# G = number of simulations
+next_adj_prob <- function(n, k, G = 1e5) {
+  count <- 0
+  for (i in 1:G) {
+    # Sample k + 1 nucleotides
+    x <- sample(x = n, size = k + 1)
+    # Check if the last mutation is adjacent to any of the prior ones
+    count <- count + (x[k + 1] %in% c(x[1:k] - 1, x[1:k] + 1))
+  }
+  count/G
+}
+
+# Simulate the probability that there are any adjacent mutations
+# n = sequence length
+# k = number of mutations
+# G = number of simulations
+any_adj_prob <- function(n, k, G = 1e5) {
+  adjacent <- logical(G)
+  for (i in 1:G) {
+    # Sample k positions
+    x <- sort(sample(x = n, size = k))
+    # Check if any adjacent
+    adjacent[i] <- (1 %in% (x - dplyr::lag(x)))
+  }
+  mean(adjacent)
+}
+
+# Probabilites for the example with n = 105, k = 11
+(prob_next <- next_adj_prob(105, 11))
+(prob_any <- any_adj_prob(105, 11))
+```
+
+Using the simulation method with $n = 105$ and $k = 11$, the probability that the next mutation is adjacent is approximately $`r formatC(prob_next, 3, format = "f")`$.  As expected, this is close to but smaller than the heuristic upper bound of $0.234$.  This suggests that the heuristic is reasonable when the mutation rate is around 10%.  The probability that any of the 11 mutations are adjacent is approximately $`r formatC(prob_any, 3, format = "f")`$.
+
+Below we plot probabilities for $n = 105$ using a range of values for $k$.  We see that the heuristic upper bound is reasonable when the percent of mutations is small.  As the mutation rate increases, the upper bound grows faster than the simulated probability, exceeding one when the rate exceeds 33%.
+
+```{r plots, cache=TRUE}
+library(parallel)
+library(ggplot2)
+
+# Next Mutation is Adjacent -----------------------------------------------
+
+n <- 105
+k_vals <- 0:105
+
+# Estimate adjacency probability by simulations
+cl <- makeCluster(detectCores() - 1)
+next_adj_prob_sim <- parSapply(
+  cl = cl, 
+  X = k_vals,
+  FUN = next_adj_prob, 
+  n = n,
+  G = 1e6
+  )
+stopCluster(cl)
+
+# Estimate adjacency probability by heuristic rule
+next_adj_prob_heur <- pmin(2*k_vals/(n - k_vals), 1)
+
+# Combine data and plot
+adj_prob_data <- tibble(
+  k = rep(k_vals, 2),
+  k_pct = k/n*100,
+  probability = c(next_adj_prob_sim, next_adj_prob_heur),
+  type = rep(c("Simulation", "Heuristic"), each = length(k_vals))
+)
+
+ggplot(adj_prob_data, aes(k_pct, probability, color = type)) +
+  geom_point() +
+  geom_line() +
+  xlab("% Mutated") +
+  ylab("Probability that next mutation is adjacent") +
+  ggtitle(paste("n =", n))
+
+
+# Any Mutation is Adjacent ------------------------------------------------
+
+n <- 105
+k_vals <- 0:25
+
+# Estimate probability by simulations
+cl <- makeCluster(detectCores() - 1)
+any_adj_prob_sim <- parSapply(
+  cl = cl, 
+  X = k_vals,
+  FUN = any_adj_prob, 
+  n = n,
+  G = 1e5
+  )
+stopCluster(cl)
+
+adj_prob_data <- tibble(
+  k = k_vals,
+  k_pct = k/n*100,
+  probability = any_adj_prob_sim
+)
+
+ggplot(adj_prob_data, aes(k_pct, probability)) +
+  geom_point() +
+  geom_line() +
+  xlab("% Mutated") +
+  ylab("Probability that any mutations are adjacent") +
+  ggtitle(paste("n =", n))
+```
+

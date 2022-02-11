@@ -1,0 +1,7 @@
+"2","Warning in gzfile(file, ""wb"") :"
+"2","
+ "
+"2"," cannot open compressed file 'M:/PEDS/DYS_OTIS_CTIS/STAFF - INDIVIDUAL FOLDERS/Gordon/sandbox and experiments/probability-of-adjacent-mutations/.Rproj.user/shared/notebooks/86F4870D-probability-of-adjacent-mutations/1/19346013684CBD51/ck5lgjh4ldu0r_t/83634a9a7cd64bb5b5a5cd0c5e814a50.snapshot', probable reason 'No such file or directory'
+"
+"2","Error in gzfile(file, ""wb"") : cannot open the connection
+"

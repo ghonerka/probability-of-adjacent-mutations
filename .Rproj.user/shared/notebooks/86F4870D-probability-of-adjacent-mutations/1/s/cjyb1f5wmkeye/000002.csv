@@ -1,0 +1,56 @@
+"0","library(dplyr)"
+"2","
+Attaching package: ‘dplyr’
+
+"
+"2","The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+"
+"0","# Simulate the probability that the next mutation will be adjacent to any of the previous"
+"0","# n = sequence length"
+"0","# k = number of previous mutations"
+"0","# G = number of simulations"
+"0","next_adj_prob <- function(n, k, G = 1e5) {"
+"0","  count <- 0"
+"0","  for (i in 1:G) {"
+"0","    # Sample k + 1 nucleotides"
+"0","    x <- sample(x = n, size = k + 1)"
+"0","    # Check if the last mutation is adjacent to any of the prior ones"
+"0","    count <- count + (x[k + 1] %in% c(x[1:k] - 1, x[1:k] + 1))"
+"0","  }"
+"0","  count/G"
+"0","}"
+"0",""
+"0","# Simulate the probability that there are any adjacent mutations"
+"0","# n = sequence length"
+"0","# k = number of mutations"
+"0","# G = number of simulations"
+"0","any_adj_prob <- function(n, k, G = 1e5) {"
+"0","  adjacent <- logical(G)"
+"0","  for (i in 1:G) {"
+"0","    # Sample k positions"
+"0","    x <- sort(sample(x = n, size = k))"
+"0","    # Check if any adjacent"
+"0","    adjacent[i] <- (1 %in% (x - dplyr::lag(x)))"
+"0","  }"
+"0","  mean(adjacent)"
+"0","}"
+"0",""
+"0","# Probabilites for the example with n = 105, k = 11"
+"0","(prob_next <- next_adj_prob(105, 11))"
+"1","[1]"
+"1"," 0.19649"
+"1","
+"
+"0","(prob_any <- any_adj_prob(105, 11))"
+"1","[1]"
+"1"," 0.68788"
+"1","
+"
